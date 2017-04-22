@@ -10,8 +10,8 @@ public class MessageUtils {
 	public static String REGISTRATION_EXISTING_USER = "Existing User";
 	
 	
-	public static String APPROVE_TRANSACTION_SMS = "asd";
-	public static String REJECT_TRANSACTION_SMS = "asd";
+	public static String APPROVE_TRANSACTION_SMS = "Your Transaction has been rejected. Your reference number is ";
+	public static String REJECT_TRANSACTION_SMS = "Your Transaction has been approved. Your reference number is ";;
 	public static String PROCESS_TRANSACTION_SMS = "Your request is now on process. Wait for the confirmation for further details. Your reference number is ";
 	public static String TRANSACTION_FAIL = "Your transaction has failed to be created.";
 	public static String TRANSACTION_PROCESSING_FAIL = "Processing of the selected transaction failed.";

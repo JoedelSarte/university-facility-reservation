@@ -7,15 +7,16 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.hibernate.type.IntegerType;
 import org.joda.time.DateTime;
 import org.joda.time.Hours;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.twilio.Twilio;
+import com.twilio.exception.TwilioException;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
 
@@ -150,11 +151,14 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 	private TransactionResponse disapproveRequest(TransactionRequest request) throws Exception {
 
 		TransactionResponse transactionResponse = new TransactionResponse();
+		User user = userRepository.findById(request.getUserId());
 		
 		try{
 			transactionRepository.disapproveTransaction(request.getReferenceNumber());
 			transactionResponse.setCode(TransactionResponse.CODE_SUCCESS);
 			transactionResponse.setMessage(MessageUtils.TRANSACTION_PROCESSING_SUCCESS);
+			String message = buildMessage(MessageUtils.APPROVE_TRANSACTION,request.getReferenceNumber());
+			sendSms(message,user);
 		}catch(Exception e){
 			log.error(e.getMessage());
 			transactionResponse.setCode(Response.CODE_FAILED);
@@ -167,11 +171,14 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 	private TransactionResponse approveRequest(TransactionRequest request) throws Exception {
 		
 		TransactionResponse transactionResponse = new TransactionResponse();
+		User user = userRepository.findById(request.getUserId());
 		
 		try{
 			transactionRepository.approveTransaction(request.getReferenceNumber());
 			transactionResponse.setCode(TransactionResponse.CODE_SUCCESS);
 			transactionResponse.setMessage(MessageUtils.TRANSACTION_PROCESSING_SUCCESS);
+			String message = buildMessage(MessageUtils.APPROVE_TRANSACTION,request.getReferenceNumber());
+			sendSms(message,user);
 		}catch(Exception e){
 			log.error(e.getMessage());
 			transactionResponse.setCode(Response.CODE_FAILED);
@@ -239,6 +246,9 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 			
 			transactionResponse.setCode(TransactionResponse.CODE_SUCCESS);
 			transactionResponse.setMessage(MessageUtils.PROCESS_TRANSACTION_SMS+reference);
+			String message = buildMessage(MessageUtils.PROCESS_TRANSACTION,reference);
+			sendSms(message,user);
+		
 			
 		}catch(Exception e){
 			log.error(e.getMessage());
@@ -262,28 +272,57 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 		
 	}
 	
-	/*public void SendSms(){
+	
+	
+	private void sendSms(String messageDtl,User user){
+		
+		PhoneNumber TWILIO_PHONE_NUMBER = new PhoneNumber("+18589142588");
+		
+		List<String> userContactNumber = new ArrayList<String>();
+		if(!StringUtils.isEmpty(user.getContactNumber1())){
+			userContactNumber.add(user.getContactNumber1());
+		}
+		if(!StringUtils.isEmpty(user.getContactNumber2())){
+			userContactNumber.add(user.getContactNumber2());
+		}
+		if(!StringUtils.isEmpty(user.getContactNumber3())){
+			userContactNumber.add(user.getContactNumber3());
+		}
+		
+		try{
+			initializeTwilio();
+		}catch(TwilioException te){
+			log.error(te.getMessage());
+			te.printStackTrace();
+		}
+		
+		for(String number :userContactNumber){
+			//Use Twilio Api to Send
+			Message.creator(new PhoneNumber(number),TWILIO_PHONE_NUMBER,messageDtl).create();
+		}
+	 
+	}
+	
+	private String buildMessage(Integer transactionType,String refNo) {
+		
+		StringBuffer message = new StringBuffer();
+		
+		if(transactionType.equals(MessageUtils.PROCESS_TRANSACTION)){
+			message.append(MessageUtils.PROCESS_TRANSACTION_SMS+refNo);
+		}else if(transactionType.equals(MessageUtils.APPROVE_TRANSACTION)){
+			message.append(MessageUtils.APPROVE_TRANSACTION_SMS+refNo);
+		}else if(transactionType.equals(MessageUtils.REJECT_TRANSACTION)){
+			message.append(MessageUtils.REJECT_TRANSACTION_SMS+refNo);
+		}
+		return message.toString();
+	}
+
+	private void initializeTwilio() throws TwilioException{
+		//Your Twilio Account
 		String ACCOUNT_SID ="AC9ca5dc3b282fd214a2e0ae2a00e82ed0";
 	   	String AUTH_TOKEN = "32bbcf2cae9c813702c2f780d6ff822e";
 	   	Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
-	   	Message message = Message.creator(new PhoneNumber("+639750646891"),new PhoneNumber("+18589142588"), "Hello lels").create();
-	   	System.out.println(	message.getDateSent());
-	   	System.out.println(message.getSid());
-		System.out.println(message.getStatus());
 	}
-	
-	private String buildMessage(int transactionType,Transaction transaction){
-		String message = null;
-		if(transactionType == MessageUtils.PROCESS_TRANSACTION){
-			message = MessageUtils.PROCESS_TRANSACTION_SMS;
-			message = message.replace("{0}", transaction.getId() + "");
-		}
-		else if (transactionType == MessageUtils.APPROVE_TRANSACTION){
-			
-		}
-		else if (transactionType == MessageUtils.REJECT_TRANSACTION){
-			
-		}
-		return message;
-	}*/
+
+
 }
