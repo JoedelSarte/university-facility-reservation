@@ -20,11 +20,13 @@ import com.twilio.exception.TwilioException;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
 
+import dlsud.entity.Facilities;
 import dlsud.entity.Personnel;
 import dlsud.entity.Rate;
 import dlsud.entity.Transaction;
 import dlsud.entity.TransactionDetails;
 import dlsud.entity.User;
+import dlsud.repository.FacilitiesRepository;
 import dlsud.repository.PersonnelRepository;
 import dlsud.repository.RateRepository;
 import dlsud.repository.TransactionDetailsRepository;
@@ -56,6 +58,9 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 	
 	@Autowired
 	private TransactionDetailsRepository transactionDetailsRepository;
+	
+	@Autowired
+	private FacilitiesRepository facilitiesRepository;
 	
 	@Override
 	public Log getLog() {
@@ -91,15 +96,55 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 			case 4: transactionResponse = deleteRequest(request);
 					break;
 			case 5: transactionResponse = viewRequest(request);
+					break;
+			case 6: transactionResponse = viewUserRequest(request);
+					break;
 		}
 		return transactionResponse;
 	}
 	
+	private TransactionResponse viewUserRequest(TransactionRequest request) {
+		TransactionResponse transactionResponse = new TransactionResponse();
+		try{
+			List<Transaction> transaction = transactionRepository.
+					findByActivityStartTimeAndFacilityIdAndUserIdOrderByActivityStartTimeAsc(request.getRequestDate(), request.getFacilityId(), request.getUserId());
+			List<Transactions> transactionList = new ArrayList<>();
+			System.out.println(transaction.size());
+			for(Transaction data:transaction){
+				Transactions transactions = new Transactions();
+				List<TransactionDetails> transactionDetailList = transactionDetailsRepository.findByTransactionId(data.getId());
+				TransactionDetails transactionDetails = transactionDetailList.remove(0);
+				transactions.setReferenceNumber(data.getReferenceNumber());
+				transactions.setEventName(data.getEventName());
+				transactions.setActivityStartTime(data.getActivityStartTime());
+				transactions.setActivityEndTime(data.getActivityEndTime());
+				transactions.setIsApproved(data.getIsApproved());
+				transactions.setTotalPayment(transactionDetails.getTransactionPayment()+"");
+				transactionList.add(transactions);
+			}
+			
+			if(transactionList.size()==0){
+				transactionList = null;
+			}
+			
+			transactionResponse.setTransactions(transactionList);
+			
+			transactionResponse.setCode(TransactionResponse.CODE_SUCCESS);
+		}catch(Exception e){
+			log.error(e.getMessage());
+			transactionResponse.setCode(Response.CODE_FAILED);
+			transactionResponse.setMessage(MessageUtils.TRANSACTION_PROCESSING_FAIL);
+			e.printStackTrace();
+		}
+		return transactionResponse;
+	}
+
 	private TransactionResponse viewRequest(TransactionRequest request) {
 		
 		TransactionResponse transactionResponse = new TransactionResponse();
 		try{
-			List<Transaction> transaction = transactionRepository.findByActivityStartTimeAndFacilityId(request.getRequestDate(), request.getFacilityId());
+			List<Transaction> transaction = transactionRepository.
+					findByActivityStartTimeAndFacilityIdOrderByActivityStartTimeAsc(request.getRequestDate(), request.getFacilityId());
 			List<Transactions> transactionList = new ArrayList<>();
 			System.out.println(transaction.size());
 			for(Transaction data:transaction){
@@ -108,6 +153,7 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 				transactions.setEventName(data.getEventName());
 				transactions.setActivityStartTime(data.getActivityStartTime());
 				transactions.setActivityEndTime(data.getActivityEndTime());
+				transactions.setIsApproved(data.getIsApproved());
 				User user = userRepository.findById(data.getUserId());
 				transactions.setUserName(user.getName());
 				transactionList.add(transactions);
@@ -159,6 +205,9 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 			transactionResponse.setMessage(MessageUtils.TRANSACTION_PROCESSING_SUCCESS);
 			String message = buildMessage(MessageUtils.APPROVE_TRANSACTION,request.getReferenceNumber());
 			sendSms(message,user);
+		}catch(TwilioException e){
+			log.error(e.getMessage());
+			transactionResponse.setMessage("Sending of SMS failed");
 		}catch(Exception e){
 			log.error(e.getMessage());
 			transactionResponse.setCode(Response.CODE_FAILED);
@@ -179,6 +228,9 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 			transactionResponse.setMessage(MessageUtils.TRANSACTION_PROCESSING_SUCCESS);
 			String message = buildMessage(MessageUtils.APPROVE_TRANSACTION,request.getReferenceNumber());
 			sendSms(message,user);
+		}catch(TwilioException e){
+			log.error(e.getMessage());
+			transactionResponse.setMessage("Sending of SMS failed");
 		}catch(Exception e){
 			log.error(e.getMessage());
 			transactionResponse.setCode(Response.CODE_FAILED);
@@ -212,21 +264,29 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 			transaction.setActivityStartTime(request.getActivityStartTime());
 			transaction.setActivityTotalTime(hours.getHours()+"");
 			transaction.setFacilityId(request.getFacilityId());
-			transaction.setIsApproved(2);
+			if(user.getTypeId()==3){
+				transaction.setIsApproved(1);
+			}else{
+				transaction.setIsApproved(2);
+			}
 			transaction.setReservedCapacity(request.getReservedCapacity());
 			transaction.setActivityId(request.getActivityId());
 			transaction.setEventName(request.getEventName());
 			transaction = transactionRepository.save(transaction);
+			
+			Facilities facilities = facilitiesRepository.findById(request.getFacilityId());
 			
 			List<TransactionDetails> transactionDetailList = new ArrayList<>();
 			
 			Double personnelPayment = 0.00;
 			Double facilityPayment = 0.00;
 			Double totalPayment = 0.00;
+			List<String> personnelList = new ArrayList<>();
 			
 			for(Integer personnelId:request.getPersonnelHiredList()){
 				Personnel personnel = personnelRepository.findById(personnelId);
 				personnelPayment += personnel.getRate()*hours.getHours();
+				personnelList.add(personnel.getDescription());
 			}
 			Rate rate = rateRepository.findByFacilityIdAndUserTypeId(request.getFacilityId(), user.getTypeId());
 			facilityPayment = rate.getRatePerHour()*hours.getHours();
@@ -244,13 +304,24 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 			
 			transactionDetailsRepository.save(transactionDetailList);
 			
+			transactionResponse.setReferenceNumber(reference);
+			transactionResponse.setEventName(request.getEventName());
+			transactionResponse.setEventPrice(facilityPayment);
+			transactionResponse.setPersonnelPrice(personnelPayment);
+			transactionResponse.setEventFacility(facilities.getCode()+"-"+facilities.getDescription());
+			transactionResponse.setPersonnelList(personnelList);
+			transactionResponse.setTotalPrice(totalPayment);
 			transactionResponse.setCode(TransactionResponse.CODE_SUCCESS);
 			transactionResponse.setMessage(MessageUtils.PROCESS_TRANSACTION_SMS+reference);
 			String message = buildMessage(MessageUtils.PROCESS_TRANSACTION,reference);
 			sendSms(message,user);
 		
 			
-		}catch(Exception e){
+		}catch(TwilioException e){
+			log.error(e.getMessage());
+			transactionResponse.setMessage("Sending of SMS failed");
+		}
+		catch(Exception e){
 			log.error(e.getMessage());
 			transactionResponse.setCode(Response.CODE_FAILED);
 			transactionResponse.setMessage(MessageUtils.TRANSACTION_FAIL);
@@ -274,19 +345,22 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 	
 	
 	
-	private void sendSms(String messageDtl,User user){
+private void sendSms(String messageDtl,User user){
 		
 		PhoneNumber TWILIO_PHONE_NUMBER = new PhoneNumber("+18589142588");
 		
 		List<String> userContactNumber = new ArrayList<String>();
 		if(!StringUtils.isEmpty(user.getContactNumber1())){
-			userContactNumber.add(user.getContactNumber1());
+			String formattedNumber = formatContactNumberForTwilio(user.getContactNumber1());
+			userContactNumber.add(formattedNumber);
 		}
 		if(!StringUtils.isEmpty(user.getContactNumber2())){
-			userContactNumber.add(user.getContactNumber2());
+			String formattedNumber = formatContactNumberForTwilio(user.getContactNumber2());
+			userContactNumber.add(formattedNumber);
 		}
 		if(!StringUtils.isEmpty(user.getContactNumber3())){
-			userContactNumber.add(user.getContactNumber3());
+			String formattedNumber = formatContactNumberForTwilio(user.getContactNumber3());
+			userContactNumber.add(formattedNumber);
 		}
 		
 		try{
@@ -301,6 +375,13 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 			Message.creator(new PhoneNumber(number),TWILIO_PHONE_NUMBER,messageDtl).create();
 		}
 	 
+	}
+	
+	private String formatContactNumberForTwilio(String contactNumber) {
+		StringBuffer formattedNumber = new StringBuffer(contactNumber);
+		String PH = "+63";
+		formattedNumber.replace(0, 1, PH);
+		return formattedNumber.toString();
 	}
 	
 	private String buildMessage(Integer transactionType,String refNo) {

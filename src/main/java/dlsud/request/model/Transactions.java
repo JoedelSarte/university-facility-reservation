@@ -7,7 +7,35 @@ public class Transactions {
 	private String userName;
 	private String activityStartTime;
 	private String activityEndTime;
+	private int isApproved;
+	private String facilityPayment;
+	private String personnelPayment;
+	private String totalPayment;
 	
+	public String getTotalPayment() {
+		return totalPayment;
+	}
+	public void setTotalPayment(String totalPayment) {
+		this.totalPayment = totalPayment;
+	}
+	public String getFacilityPayment() {
+		return facilityPayment;
+	}
+	public void setFacilityPayment(String facilityPayment) {
+		this.facilityPayment = facilityPayment;
+	}
+	public String getPersonnelPayment() {
+		return personnelPayment;
+	}
+	public void setPersonnelPayment(String personnelPayment) {
+		this.personnelPayment = personnelPayment;
+	}
+	public int getIsApproved() {
+		return isApproved;
+	}
+	public void setIsApproved(int isApproved) {
+		this.isApproved = isApproved;
+	}
 	public String getReferenceNumber() {
 		return referenceNumber;
 	}

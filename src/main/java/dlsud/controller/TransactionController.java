@@ -65,6 +65,12 @@ public class TransactionController extends AbstractController{
 			return doTransaction(request, 5);
 		}
 		
+		@CrossOrigin
+		@RequestMapping(value="/userView", method=RequestMethod.POST)
+		public @ResponseBody String viewTransactionPerUser(@RequestBody String request){
+			return doTransaction(request, 6);
+		}
+		
 		public String doTransaction(String request, int operationId){
 			TransactionRequest transactionRequest;
 			TransactionResponse transactionResponse;

@@ -1,5 +1,7 @@
 package dlsud.repository;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -13,4 +15,6 @@ public interface TransactionDetailsRepository extends CrudRepository<Transaction
 	@Transactional
 	@Query("DELETE FROM TransactionDetails WHERE transactionId = ?1")
 	void deleteRequest(int transactionId);
+	
+	List<TransactionDetails> findByTransactionId(int transactionId);
 }

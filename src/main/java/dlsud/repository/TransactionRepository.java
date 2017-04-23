@@ -31,5 +31,8 @@ public interface TransactionRepository extends CrudRepository<Transaction, Integ
 	Transaction findByReferenceNumber(String referenceNumber);
 	
 	@Query("SELECT a FROM Transaction a WHERE MONTH(activityStartTime) = MONTH(?1) AND facilityId=?2")
-	List<Transaction> findByActivityStartTimeAndFacilityId(String activityStartTime, int facilityId);
+	List<Transaction> findByActivityStartTimeAndFacilityIdOrderByActivityStartTimeAsc(String activityStartTime, int facilityId);
+	
+	@Query("SELECT a FROM Transaction a WHERE MONTH(activityStartTime) = MONTH(?1) AND facilityId=?2 and userId=?3")
+	List<Transaction> findByActivityStartTimeAndFacilityIdAndUserIdOrderByActivityStartTimeAsc(String activityStartTime, int facilityId, int userId);
 }
