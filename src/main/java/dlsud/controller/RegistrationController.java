@@ -36,14 +36,14 @@ public class RegistrationController extends AbstractController {
 	@CrossOrigin
 	@RequestMapping(value="/register", method=RequestMethod.POST)
 	public @ResponseBody String register(@RequestBody String request){
-		RegistrationRequest registratioRequest;
+		RegistrationRequest registrationRequest;
 		RegistrationResponse RegistrationResponse;
 		String response=null;
 		
 		try{
 			log.info(request);
-			registratioRequest = unmarshal(request, RegistrationRequest.class);
-			RegistrationResponse = registrationService.handleRequest(registratioRequest);
+			registrationRequest = unmarshal(request, RegistrationRequest.class);
+			RegistrationResponse = registrationService.handleRequest(registrationRequest);
 			response = marshal(RegistrationResponse);
 		}catch(Exception e){
 			log.error(request, e);

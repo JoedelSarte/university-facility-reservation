@@ -14,16 +14,17 @@ public class Transaction {
 	@GeneratedValue(strategy=GenerationType.AUTO)
 	private int id;
 	private String referenceNumber;
+	private String eventName;
 	private int facilityId;
 	private int activityId;
 	private int userId;
-	private Integer reservedCapacity;
-	private int personnelHired;
 	private String activityStartTime;
 	private String activityEndTime;
 	private String activityTotalTime;
 	private int isApproved;
-	private String eventName;
+	private double facilityPayment;
+	private double totalPayment;
+	private int isPaid;
 	
 	public String getEventName() {
 		return eventName;
@@ -55,12 +56,6 @@ public class Transaction {
 	public void setActivityId(int activityId) {
 		this.activityId = activityId;
 	}
-	public int getPersonnelHired() {
-		return personnelHired;
-	}
-	public void setPersonnelHired(int personnelHired) {
-		this.personnelHired = personnelHired;
-	}
 	public int getIsApproved() {
 		return isApproved;
 	}
@@ -91,10 +86,22 @@ public class Transaction {
 	public void setActivityTotalTime(String activityTotalTime) {
 		this.activityTotalTime = activityTotalTime;
 	}
-	public void setReservedCapacity(Integer reservedCapacity) {
-		this.reservedCapacity = reservedCapacity;
+	public double getFacilityPayment() {
+		return facilityPayment;
 	}
-	public Integer getReservedCapacity() {
-		return reservedCapacity;
+	public void setFacilityPayment(double facilityPayment) {
+		this.facilityPayment = facilityPayment;
+	}
+	public double getTotalPayment() {
+		return totalPayment;
+	}
+	public void setTotalPayment(double totalPayment) {
+		this.totalPayment = totalPayment;
+	}
+	public int getIsPaid() {
+		return isPaid;
+	}
+	public void setIsPaid(int isPaid) {
+		this.isPaid = isPaid;
 	}
 }

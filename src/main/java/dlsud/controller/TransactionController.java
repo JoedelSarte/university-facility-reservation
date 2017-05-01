@@ -71,6 +71,12 @@ public class TransactionController extends AbstractController{
 			return doTransaction(request, 6);
 		}
 		
+		@CrossOrigin
+		@RequestMapping(value="/edit", method=RequestMethod.POST)
+		public @ResponseBody String editTransaction(@RequestBody String request){
+			return doTransaction(request, 7);
+		}
+		
 		public String doTransaction(String request, int operationId){
 			TransactionRequest transactionRequest;
 			TransactionResponse transactionResponse;

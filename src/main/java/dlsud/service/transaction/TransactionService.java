@@ -20,16 +20,12 @@ import com.twilio.exception.TwilioException;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
 
-import dlsud.entity.Facilities;
-import dlsud.entity.Personnel;
-import dlsud.entity.Rate;
 import dlsud.entity.Transaction;
-import dlsud.entity.TransactionDetails;
+import dlsud.entity.TransactionEquipment;
+import dlsud.entity.TransactionPersonnel;
 import dlsud.entity.User;
-import dlsud.repository.FacilitiesRepository;
-import dlsud.repository.PersonnelRepository;
-import dlsud.repository.RateRepository;
-import dlsud.repository.TransactionDetailsRepository;
+import dlsud.repository.TransactionEquipmentRepository;
+import dlsud.repository.TransactionPersonnelRepository;
 import dlsud.repository.TransactionRepository;
 import dlsud.repository.UserRepository;
 import dlsud.request.model.Transactions;
@@ -51,16 +47,10 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 	private TransactionRepository transactionRepository;
 	
 	@Autowired
-	private PersonnelRepository personnelRepository;
+	private TransactionPersonnelRepository transactionPersonnelRepository;
 	
 	@Autowired
-	private RateRepository rateRepository;
-	
-	@Autowired
-	private TransactionDetailsRepository transactionDetailsRepository;
-	
-	@Autowired
-	private FacilitiesRepository facilitiesRepository;
+	private TransactionEquipmentRepository transactionEquipmentRepository;
 	
 	@Override
 	public Log getLog() {
@@ -73,8 +63,8 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 
 	@Override
 	public void validateRequest(TransactionRequest request) throws Exception {
-		if (request.getReservedCapacity()==null && request.getReservedCapacity()==0) {
-			throw new Exception("Reserved capacity must be filled");
+		if (request.getEventName()==null && request.getEventName().isEmpty()) {
+			throw new Exception("Event Name must be filled");
 		}
 		if (request.getActivityStartTime()==null && request.getActivityStartTime()==""){
 			throw new Exception("Please specify start time");
@@ -99,27 +89,59 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 					break;
 			case 6: transactionResponse = viewUserRequest(request);
 					break;
+			case 7: transactionResponse = editRequest(request);
+					break;
 		}
 		return transactionResponse;
 	}
 	
+	private TransactionResponse editRequest(TransactionRequest request) {
+		TransactionResponse transactionResponse = new TransactionResponse();
+		
+		try{
+			DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+			DateTime startTime = dateTimeFormatter.parseDateTime(request.getActivityStartTime());
+			DateTime endTime = dateTimeFormatter.parseDateTime(request.getActivityEndTime());
+			Hours hours = Hours.hoursBetween(startTime, endTime);
+			
+			transactionRepository.editTransaction(request.getActivityStartTime(), request.getActivityEndTime(), hours.getHours()+"",request.getReferenceNumber());
+			
+			transactionResponse.setCode(TransactionResponse.CODE_SUCCESS);
+			transactionResponse.setMessage(MessageUtils.TRANSACTION_PROCESSING_SUCCESS);
+		}catch(Exception e){
+			log.error(e.getMessage());
+			transactionResponse.setCode(Response.CODE_FAILED);
+			transactionResponse.setMessage(MessageUtils.TRANSACTION_PROCESSING_FAIL);
+			e.printStackTrace();
+		}
+		
+		return transactionResponse;
+	}
+
 	private TransactionResponse viewUserRequest(TransactionRequest request) {
 		TransactionResponse transactionResponse = new TransactionResponse();
 		try{
 			List<Transaction> transaction = transactionRepository.
 					findByActivityStartTimeAndFacilityIdAndUserIdOrderByActivityStartTimeAsc(request.getRequestDate(), request.getFacilityId(), request.getUserId());
 			List<Transactions> transactionList = new ArrayList<>();
-			System.out.println(transaction.size());
 			for(Transaction data:transaction){
 				Transactions transactions = new Transactions();
-				List<TransactionDetails> transactionDetailList = transactionDetailsRepository.findByTransactionId(data.getId());
-				TransactionDetails transactionDetails = transactionDetailList.remove(0);
+				List<TransactionPersonnel> transactionPersonnelList = transactionPersonnelRepository.findByTransactionId(data.getId());
+				List<TransactionEquipment> transactionEquipmentList = transactionEquipmentRepository.findByTransactionId(data.getId());
+				
+				transactions.setTransactionPersonnelList(transactionPersonnelList);
+				transactions.setTransactionEquipmentList(transactionEquipmentList);
 				transactions.setReferenceNumber(data.getReferenceNumber());
 				transactions.setEventName(data.getEventName());
 				transactions.setActivityStartTime(data.getActivityStartTime());
 				transactions.setActivityEndTime(data.getActivityEndTime());
 				transactions.setIsApproved(data.getIsApproved());
-				transactions.setTotalPayment(transactionDetails.getTransactionPayment()+"");
+				transactions.setIsPaid(data.getIsPaid());
+				transactions.setFacilityPayment(data.getFacilityPayment());
+				transactions.setTotalPayment(data.getTotalPayment());
+				transactions.setEquipmentPayment(transactionEquipmentList.remove(0).getTotalAmount());
+				transactions.setPersonnelPayment(transactionPersonnelList.remove(0).getTotalAmount());
+				
 				transactionList.add(transactions);
 			}
 			
@@ -144,18 +166,26 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 		TransactionResponse transactionResponse = new TransactionResponse();
 		try{
 			List<Transaction> transaction = transactionRepository.
-					findByActivityStartTimeAndFacilityIdOrderByActivityStartTimeAsc(request.getRequestDate(), request.getFacilityId());
+					findByActivityStartTimeAndFacilityIdAndIsApprovedOrderByActivityStartTimeAsc(request.getRequestDate(), request.getFacilityId(), request.getStatus());
 			List<Transactions> transactionList = new ArrayList<>();
-			System.out.println(transaction.size());
 			for(Transaction data:transaction){
 				Transactions transactions = new Transactions();
+				List<TransactionPersonnel> transactionPersonnelList = transactionPersonnelRepository.findByTransactionId(data.getId());
+				List<TransactionEquipment> transactionEquipmentList = transactionEquipmentRepository.findByTransactionId(data.getId());
+				
+				transactions.setTransactionPersonnelList(transactionPersonnelList);
+				transactions.setTransactionEquipmentList(transactionEquipmentList);
 				transactions.setReferenceNumber(data.getReferenceNumber());
 				transactions.setEventName(data.getEventName());
 				transactions.setActivityStartTime(data.getActivityStartTime());
 				transactions.setActivityEndTime(data.getActivityEndTime());
 				transactions.setIsApproved(data.getIsApproved());
-				User user = userRepository.findById(data.getUserId());
-				transactions.setUserName(user.getName());
+				transactions.setIsPaid(data.getIsPaid());
+				transactions.setFacilityPayment(data.getFacilityPayment());
+				transactions.setTotalPayment(data.getTotalPayment());
+				transactions.setEquipmentPayment(transactionEquipmentList.remove(0).getTotalAmount());
+				transactions.setPersonnelPayment(transactionPersonnelList.remove(0).getTotalAmount());
+				
 				transactionList.add(transactions);
 			}
 			
@@ -181,7 +211,8 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 		
 		try{
 			Transaction transaction = transactionRepository.findByReferenceNumber(request.getReferenceNumber());
-			transactionDetailsRepository.deleteRequest(transaction.getId());
+			transactionPersonnelRepository.deleteRequest(transaction.getId());
+			transactionEquipmentRepository.deleteRequest(transaction.getId());
 			transactionRepository.deleteRequest(request.getReferenceNumber());
 			transactionResponse.setCode(TransactionResponse.CODE_SUCCESS);
 			transactionResponse.setMessage(MessageUtils.TRANSACTION_PROCESSING_SUCCESS);
@@ -259,58 +290,50 @@ public class TransactionService extends AbstractService<TransactionRequest, Tran
 			Hours hours = Hours.hoursBetween(startTime, endTime);
 			
 			transaction.setReferenceNumber(reference);
-			transaction.setUserId(request.getUserId());
-			transaction.setActivityEndTime(request.getActivityEndTime());
-			transaction.setActivityStartTime(request.getActivityStartTime());
-			transaction.setActivityTotalTime(hours.getHours()+"");
+			transaction.setEventName(request.getEventName());
 			transaction.setFacilityId(request.getFacilityId());
+			transaction.setActivityId(request.getActivityId());
+			transaction.setUserId(request.getUserId());
+			transaction.setActivityStartTime(request.getActivityStartTime());
+			transaction.setActivityEndTime(request.getActivityEndTime());
+			transaction.setActivityTotalTime(hours.getHours()+"");
 			if(user.getTypeId()==3){
 				transaction.setIsApproved(1);
 			}else{
 				transaction.setIsApproved(2);
 			}
-			transaction.setReservedCapacity(request.getReservedCapacity());
-			transaction.setActivityId(request.getActivityId());
-			transaction.setEventName(request.getEventName());
+			transaction.setFacilityPayment(request.getFacilityPayment());
+			transaction.setTotalPayment(request.getTotalPayment());
+			transaction.setIsPaid(0);
 			transaction = transactionRepository.save(transaction);
 			
-			Facilities facilities = facilitiesRepository.findById(request.getFacilityId());
+			List<TransactionPersonnel> transactionPersonnelList = new ArrayList<>();
 			
-			List<TransactionDetails> transactionDetailList = new ArrayList<>();
-			
-			Double personnelPayment = 0.00;
-			Double facilityPayment = 0.00;
-			Double totalPayment = 0.00;
-			List<String> personnelList = new ArrayList<>();
-			
-			for(Integer personnelId:request.getPersonnelHiredList()){
-				Personnel personnel = personnelRepository.findById(personnelId);
-				personnelPayment += personnel.getRate()*hours.getHours();
-				personnelList.add(personnel.getDescription());
-			}
-			Rate rate = rateRepository.findByFacilityIdAndUserTypeId(request.getFacilityId(), user.getTypeId());
-			facilityPayment = rate.getRatePerHour()*hours.getHours();
-			totalPayment = personnelPayment+facilityPayment;
-			
-			for(Integer personnelId:request.getPersonnelHiredList()){
-				TransactionDetails transactionDetails = new TransactionDetails();
-				transactionDetails.setIsPaid(0);
-				transactionDetails.setPersonnelRateId(personnelId);
-				transactionDetails.setTransactionId(transaction.getId());
-				transactionDetails.setTransactionPayment(totalPayment);
-				transactionDetails.setTransactionRateId(rate.getId());
-				transactionDetailList.add(transactionDetails);
+			for(TransactionPersonnel transactionPersonnelData:request.getPersonnelList()){
+				TransactionPersonnel transactionPersonnel = new TransactionPersonnel();
+				transactionPersonnel.setPersonnelId(transactionPersonnelData.getPersonnelId());
+				transactionPersonnel.setPersonnelPayment(transactionPersonnelData.getPersonnelPayment());
+				transactionPersonnel.setTotalAmount(request.getPersonnelTotalPayment());
+				transactionPersonnel.setTransactionId(transaction.getId());
+				transactionPersonnelList.add(transactionPersonnel);
 			}
 			
-			transactionDetailsRepository.save(transactionDetailList);
+			transactionPersonnelRepository.save(transactionPersonnelList);
+			
+			List<TransactionEquipment> transactionEquipmentList = new ArrayList<>();
+			
+			for(TransactionEquipment transactionEquipmentData:request.getEquipmentList()){
+				TransactionEquipment transactionEquipment = new TransactionEquipment();
+				transactionEquipment.setEquipmentId(transactionEquipmentData.getEquipmentId());
+				transactionEquipment.setEquipmentPayment(transactionEquipmentData.getEquipmentPayment());
+				transactionEquipment.setTotalAmount(request.getEquipmentTotalPayment());
+				transactionEquipment.setTransactionId(transaction.getId());
+				transactionEquipmentList.add(transactionEquipment);
+			}
+			
+			transactionEquipmentRepository.save(transactionEquipmentList);
 			
 			transactionResponse.setReferenceNumber(reference);
-			transactionResponse.setEventName(request.getEventName());
-			transactionResponse.setEventPrice(facilityPayment);
-			transactionResponse.setPersonnelPrice(personnelPayment);
-			transactionResponse.setEventFacility(facilities.getCode()+"-"+facilities.getDescription());
-			transactionResponse.setPersonnelList(personnelList);
-			transactionResponse.setTotalPrice(totalPayment);
 			transactionResponse.setCode(TransactionResponse.CODE_SUCCESS);
 			transactionResponse.setMessage(MessageUtils.PROCESS_TRANSACTION_SMS+reference);
 			String message = buildMessage(MessageUtils.PROCESS_TRANSACTION,reference);

@@ -1,5 +1,10 @@
 package dlsud.request.model;
 
+import java.util.List;
+
+import dlsud.entity.TransactionEquipment;
+import dlsud.entity.TransactionPersonnel;
+
 public class Transactions {
 
 	private String referenceNumber;
@@ -8,27 +13,25 @@ public class Transactions {
 	private String activityStartTime;
 	private String activityEndTime;
 	private int isApproved;
-	private String facilityPayment;
-	private String personnelPayment;
-	private String totalPayment;
+	private double facilityPayment;
+	private double totalPayment;
+	private double equipmentPayment;
+	private double personnelPayment;
+	private int isPaid;
+	private List<TransactionEquipment> transactionEquipmentList;
+	private List<TransactionPersonnel> transactionPersonnelList;
 	
-	public String getTotalPayment() {
-		return totalPayment;
-	}
-	public void setTotalPayment(String totalPayment) {
-		this.totalPayment = totalPayment;
-	}
-	public String getFacilityPayment() {
+	public double getFacilityPayment() {
 		return facilityPayment;
 	}
-	public void setFacilityPayment(String facilityPayment) {
+	public void setFacilityPayment(double facilityPayment) {
 		this.facilityPayment = facilityPayment;
 	}
-	public String getPersonnelPayment() {
-		return personnelPayment;
+	public double getTotalPayment() {
+		return totalPayment;
 	}
-	public void setPersonnelPayment(String personnelPayment) {
-		this.personnelPayment = personnelPayment;
+	public void setTotalPayment(double totalPayment) {
+		this.totalPayment = totalPayment;
 	}
 	public int getIsApproved() {
 		return isApproved;
@@ -66,4 +69,35 @@ public class Transactions {
 	public void setActivityEndTime(String activityEndTime) {
 		this.activityEndTime = activityEndTime;
 	}
+	public int getIsPaid() {
+		return isPaid;
+	}
+	public void setIsPaid(int isPaid) {
+		this.isPaid = isPaid;
+	}
+	public List<TransactionEquipment> getTransactionEquipmentList() {
+		return transactionEquipmentList;
+	}
+	public void setTransactionEquipmentList(List<TransactionEquipment> transactionEquipmentList) {
+		this.transactionEquipmentList = transactionEquipmentList;
+	}
+	public List<TransactionPersonnel> getTransactionPersonnelList() {
+		return transactionPersonnelList;
+	}
+	public void setTransactionPersonnelList(List<TransactionPersonnel> transactionPersonnelList) {
+		this.transactionPersonnelList = transactionPersonnelList;
+	}
+	public double getEquipmentPayment() {
+		return equipmentPayment;
+	}
+	public void setEquipmentPayment(double equipmentPayment) {
+		this.equipmentPayment = equipmentPayment;
+	}
+	public double getPersonnelPayment() {
+		return personnelPayment;
+	}
+	public void setPersonnelPayment(double personnelPayment) {
+		this.personnelPayment = personnelPayment;
+	}
+	
 }
